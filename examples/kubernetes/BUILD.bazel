@@ -1,8 +1,14 @@
-load("//conftest:def.bzl", "conftest_test")
+load("//conftest:def.bzl", "conftest_test", "conftest_report")
 
 conftest_test(
     name = "service_test",
     srcs = ["service.yaml"],
+    policies = glob(["policy/*.rego"]),
+)
+
+conftest_report(
+    name = "service_report",
+    src = "service.yaml",
     policies = glob(["policy/*.rego"]),
 )
 

@@ -26,7 +26,7 @@ def _conftest_test_impl(ctx):
                 files = ctx.files.srcs + ctx.files.policies + ctx.files.data,
                 transitive_files = depset(transitive = [
                     binary.files,
-                    depset(binary[DefaultInfo].default_runfiles.files),
+                    binary[DefaultInfo].default_runfiles.files,
                 ]),
             ),
         ),
@@ -45,5 +45,50 @@ conftest_test = rule(
             allow_single_file = True,
         ),
     },
-    toolchains = ["//conftest:toolchain"]
+    toolchains = ["//conftest:toolchain"],
+)
+
+def _conftest_report_impl(ctx):
+    toolchain = ctx.toolchains["//conftest:toolchain"]
+    binary = toolchain.conftest_binary
+    binary_file = binary.files.to_list()[0]
+
+    f = ctx.actions.declare_file(ctx.attr.output_path)
+    ctx.actions.run_shell(
+        command = " ".join([binary_file.path, "test", ctx.files.src[0].path] +
+                           ["-d " + f.path for f in ctx.files.data] +
+                           ["-p " + f.path for f in ctx.files.policies] +
+                           ["--no-color", "--no-fail", "-o " + ctx.attr.format] +
+                           [">", f.path]),
+        inputs = depset(ctx.files.data + ctx.files.policies + ctx.files.src),
+        tools = [binary_file],
+        outputs = [f],
+        use_default_shell_env = True,
+    )
+
+    return [
+        DefaultInfo(
+            files = depset([f]),
+        ),
+    ]
+
+conftest_report = rule(
+    implementation = _conftest_report_impl,
+    attrs = {
+        "src": attr.label(
+            mandatory = True,
+            allow_single_file = True,
+        ),
+        "policies": attr.label_list(allow_files = True),
+        "data": attr.label_list(allow_files = True, default = []),
+        "output_path": attr.string(
+            mandatory = False,
+            default = "standard_render_check_report.txt",
+        ),
+        "format": attr.string(
+            mandatory = False,
+            default = "stdout",
+        ),
+    },
+    toolchains = ["//conftest:toolchain"],
 )
